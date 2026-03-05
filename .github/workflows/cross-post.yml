@@ -27,7 +27,7 @@ jobs:
           echo "posts=$POSTS" >> $GITHUB_OUTPUT
 
       - name: Cross-post each new article
-        if: steps.changed.outputs.posts != ''
+        if: steps.changed.outputs.posts != '' && secrets.DEVTO_API_KEY != ''
         working-directory: tools/content-cli
         env:
           DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
@@ -41,7 +41,7 @@ jobs:
           done
 
       - name: Generate social content and enqueue
-        if: steps.changed.outputs.posts != ''
+        if: steps.changed.outputs.posts != '' && secrets.ANTHROPIC_API_KEY != ''
         working-directory: tools/content-cli
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -49,7 +49,7 @@ jobs:
         run: |
           for post in ${{ steps.changed.outputs.posts }}; do
             echo "Repurposing: $post"
-            uv run myworkflow repurpose generate "../../$post" --all --enqueue
+            uv run myworkflow repurpose generate "../../$post" --format all --enqueue
           done
           echo ""
           echo "Twitter: auto-queued"
