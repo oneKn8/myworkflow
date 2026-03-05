@@ -4,21 +4,22 @@ const links = [
   { href: "https://github.com/oneKn8", label: "GitHub" },
   { href: "https://x.com/oneKn8", label: "X" },
   { href: "https://linkedin.com/in/shifat-islam-santo", label: "LinkedIn" },
+  { href: "/rss.xml", label: "RSS" },
 ];
 ---
 
-<footer class="mt-auto border-t border-(--color-border) py-8">
-  <div class="mx-auto flex max-w-3xl flex-col items-center gap-4 px-4 sm:flex-row sm:justify-between">
-    <p class="text-sm text-(--color-text-muted)">
-      &copy; {year} Shifat Islam Santo
+<footer class="mt-auto border-t border-(--color-border)">
+  <div class="mx-auto flex max-w-3xl flex-col items-center gap-4 px-4 py-8 sm:flex-row sm:justify-between">
+    <p class="text-xs text-(--color-text-muted)">
+      &copy; {year} Shifat Islam Santo. Built with Astro.
     </p>
-    <div class="flex gap-5">
+    <div class="flex gap-4">
       {links.map(({ href, label }) => (
         <a
           href={href}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="text-sm text-(--color-text-muted) hover:text-(--color-text) transition-colors"
+          target={href.startsWith("http") ? "_blank" : undefined}
+          rel={href.startsWith("http") ? "noopener noreferrer" : undefined}
+          class="text-xs text-(--color-text-muted) transition-colors hover:text-(--color-accent)"
         >
           {label}
         </a>

@@ -2,14 +2,16 @@
 const API_URL = import.meta.env.PUBLIC_NEWSLETTER_API_URL || "https://api.shifatsanto.dev/subscribe";
 ---
 
-<div class="mt-12 rounded-lg border border-(--color-border) bg-(--color-surface) p-6">
-  <h3 class="text-lg font-semibold text-(--color-text)">Stay updated</h3>
-  <p class="mt-1 text-sm text-(--color-text-muted)">
-    Get new posts delivered to your inbox. No spam, unsubscribe anytime.
-  </p>
+<div class="mt-16 rounded-xl border border-(--color-border) bg-gradient-to-b from-(--color-surface) to-(--color-bg) p-6 sm:p-8">
+  <div class="text-center sm:text-left">
+    <h3 class="text-lg font-semibold text-(--color-text)">Stay in the loop</h3>
+    <p class="mt-1 text-sm text-(--color-text-muted)">
+      New posts on systems engineering, tools, and building in public. No spam.
+    </p>
+  </div>
   <form
     id="newsletter-form"
-    class="mt-4 flex gap-2"
+    class="mt-5 flex flex-col gap-2.5 sm:flex-row"
     data-api-url={API_URL}
   >
     <div class="hidden" aria-hidden="true">
@@ -20,16 +22,16 @@ const API_URL = import.meta.env.PUBLIC_NEWSLETTER_API_URL || "https://api.shifat
       name="email"
       required
       placeholder="you@example.com"
-      class="flex-1 rounded-lg border border-(--color-border) bg-(--color-bg) px-3 py-2 text-sm text-(--color-text) placeholder:text-(--color-text-muted) focus:border-(--color-accent) focus:outline-none"
+      class="flex-1 rounded-lg border border-(--color-border) bg-(--color-bg) px-4 py-2.5 text-sm text-(--color-text) placeholder:text-(--color-text-muted) transition-colors focus:border-(--color-accent) focus:outline-none"
     />
     <button
       type="submit"
-      class="rounded-lg bg-(--color-accent) px-4 py-2 text-sm font-medium text-white hover:bg-(--color-accent-hover) transition-colors"
+      class="rounded-lg bg-(--color-accent) px-5 py-2.5 text-sm font-medium text-white transition-all hover:brightness-110 hover:shadow-lg hover:shadow-(--color-accent)/20"
     >
       Subscribe
     </button>
   </form>
-  <p id="newsletter-message" class="mt-2 hidden text-sm"></p>
+  <p id="newsletter-message" class="mt-3 hidden text-center text-sm sm:text-left"></p>
 </div>
 
 <script>
@@ -39,8 +41,6 @@ const API_URL = import.meta.env.PUBLIC_NEWSLETTER_API_URL || "https://api.shifat
   form?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const formData = new FormData(form);
-
-    // Honeypot check
     if (formData.get("website")) return;
 
     const email = formData.get("email") as string;
@@ -55,16 +55,16 @@ const API_URL = import.meta.env.PUBLIC_NEWSLETTER_API_URL || "https://api.shifat
 
       if (res.ok) {
         message.textContent = "Check your email to confirm your subscription.";
-        message.className = "mt-2 text-sm text-green-400";
+        message.className = "mt-3 text-sm text-green-400 text-center sm:text-left";
         form.reset();
       } else {
         const data = await res.json().catch(() => ({}));
         message.textContent = data.detail || "Something went wrong. Please try again.";
-        message.className = "mt-2 text-sm text-red-400";
+        message.className = "mt-3 text-sm text-red-400 text-center sm:text-left";
       }
     } catch {
       message.textContent = "Network error. Please try again.";
-      message.className = "mt-2 text-sm text-red-400";
+      message.className = "mt-3 text-sm text-red-400 text-center sm:text-left";
     }
 
     message.classList.remove("hidden");
