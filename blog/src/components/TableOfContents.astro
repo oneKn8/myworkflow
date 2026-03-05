@@ -1,0 +1,34 @@
+---
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  headings: Heading[];
+}
+
+const { headings } = Astro.props;
+const filteredHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+---
+
+{filteredHeadings.length > 0 && (
+  <nav class="mb-8 rounded-lg border border-(--color-border) bg-(--color-surface) p-4" aria-label="Table of contents">
+    <h2 class="mb-3 text-sm font-semibold uppercase tracking-wider text-(--color-text-muted)">
+      On this page
+    </h2>
+    <ul class="space-y-1.5 text-sm">
+      {filteredHeadings.map((heading) => (
+        <li class:list={[heading.depth === 3 && "pl-4"]}>
+          <a
+            href={`#${heading.slug}`}
+            class="text-(--color-text-muted) hover:text-(--color-accent) transition-colors"
+          >
+            {heading.text}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+)}

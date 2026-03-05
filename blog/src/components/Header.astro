@@ -1,0 +1,33 @@
+---
+const pathname = Astro.url.pathname;
+
+const navLinks = [
+  { href: "/blog", label: "Blog" },
+  { href: "/research", label: "Research" },
+  { href: "/tags", label: "Tags" },
+  { href: "/rss.xml", label: "RSS" },
+];
+---
+
+<header class="sticky top-0 z-50 border-b border-(--color-border) bg-(--color-bg)/80 backdrop-blur-md">
+  <nav class="mx-auto flex max-w-3xl items-center justify-between px-4 py-3">
+    <a href="/" class="text-lg font-semibold text-(--color-text) hover:text-(--color-accent) transition-colors">
+      Shifat Santo
+    </a>
+    <div class="flex items-center gap-6">
+      {navLinks.map(({ href, label }) => (
+        <a
+          href={href}
+          class:list={[
+            "text-sm transition-colors",
+            pathname.startsWith(href)
+              ? "text-(--color-accent) font-medium"
+              : "text-(--color-text-muted) hover:text-(--color-text)",
+          ]}
+        >
+          {label}
+        </a>
+      ))}
+    </div>
+  </nav>
+</header>

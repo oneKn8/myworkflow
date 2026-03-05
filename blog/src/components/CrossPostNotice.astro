@@ -1,0 +1,12 @@
+---
+interface Props {
+  platform: string;
+  url: string;
+}
+
+const { platform, url } = Astro.props;
+---
+
+<div class="mb-6 rounded-lg border border-(--color-border) bg-(--color-surface) px-4 py-3 text-sm text-(--color-text-muted)">
+  Originally published on <a href={url} target="_blank" rel="noopener noreferrer" class="text-(--color-accent) hover:text-(--color-accent-hover) transition-colors">{platform}</a>.
+</div>

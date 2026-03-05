@@ -1,0 +1,32 @@
+---
+interface Props {
+  name: string;
+  bio: string;
+  avatar: string;
+  github: string;
+  twitter: string;
+  linkedin: string;
+}
+
+const { name, bio, avatar, github, twitter, linkedin } = Astro.props;
+---
+
+<div class="mt-12 flex items-start gap-4 rounded-lg border border-(--color-border) bg-(--color-surface) p-5">
+  <img
+    src={avatar}
+    alt={name}
+    width="56"
+    height="56"
+    class="rounded-full"
+    loading="lazy"
+  />
+  <div>
+    <p class="font-semibold text-(--color-text)">{name}</p>
+    <p class="mt-1 text-sm text-(--color-text-muted)">{bio}</p>
+    <div class="mt-2 flex gap-4">
+      <a href={github} target="_blank" rel="noopener noreferrer" class="text-xs text-(--color-text-muted) hover:text-(--color-accent) transition-colors">GitHub</a>
+      <a href={twitter} target="_blank" rel="noopener noreferrer" class="text-xs text-(--color-text-muted) hover:text-(--color-accent) transition-colors">X</a>
+      <a href={linkedin} target="_blank" rel="noopener noreferrer" class="text-xs text-(--color-text-muted) hover:text-(--color-accent) transition-colors">LinkedIn</a>
+    </div>
+  </div>
+</div>

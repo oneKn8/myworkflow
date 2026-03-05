@@ -1,0 +1,72 @@
+---
+const API_URL = import.meta.env.PUBLIC_NEWSLETTER_API_URL || "https://api.shifatsanto.dev/subscribe";
+---
+
+<div class="mt-12 rounded-lg border border-(--color-border) bg-(--color-surface) p-6">
+  <h3 class="text-lg font-semibold text-(--color-text)">Stay updated</h3>
+  <p class="mt-1 text-sm text-(--color-text-muted)">
+    Get new posts delivered to your inbox. No spam, unsubscribe anytime.
+  </p>
+  <form
+    id="newsletter-form"
+    class="mt-4 flex gap-2"
+    data-api-url={API_URL}
+  >
+    <div class="hidden" aria-hidden="true">
+      <input type="text" name="website" tabindex="-1" autocomplete="off" />
+    </div>
+    <input
+      type="email"
+      name="email"
+      required
+      placeholder="you@example.com"
+      class="flex-1 rounded-lg border border-(--color-border) bg-(--color-bg) px-3 py-2 text-sm text-(--color-text) placeholder:text-(--color-text-muted) focus:border-(--color-accent) focus:outline-none"
+    />
+    <button
+      type="submit"
+      class="rounded-lg bg-(--color-accent) px-4 py-2 text-sm font-medium text-white hover:bg-(--color-accent-hover) transition-colors"
+    >
+      Subscribe
+    </button>
+  </form>
+  <p id="newsletter-message" class="mt-2 hidden text-sm"></p>
+</div>
+
+<script>
+  const form = document.getElementById("newsletter-form") as HTMLFormElement;
+  const message = document.getElementById("newsletter-message")!;
+
+  form?.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const formData = new FormData(form);
+
+    // Honeypot check
+    if (formData.get("website")) return;
+
+    const email = formData.get("email") as string;
+    const apiUrl = form.dataset.apiUrl!;
+
+    try {
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      if (res.ok) {
+        message.textContent = "Check your email to confirm your subscription.";
+        message.className = "mt-2 text-sm text-green-400";
+        form.reset();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        message.textContent = data.detail || "Something went wrong. Please try again.";
+        message.className = "mt-2 text-sm text-red-400";
+      }
+    } catch {
+      message.textContent = "Network error. Please try again.";
+      message.className = "mt-2 text-sm text-red-400";
+    }
+
+    message.classList.remove("hidden");
+  });
+</script>
