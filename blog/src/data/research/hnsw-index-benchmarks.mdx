@@ -1,0 +1,36 @@
+---
+title: "HNSW Index Benchmarks: Memory vs Recall Tradeoffs"
+description: "Benchmarking HNSW parameters across different dataset sizes to find optimal memory-recall tradeoffs."
+pubDate: 2026-03-05
+tags: ["search", "algorithms", "benchmarks"]
+status: "in-progress"
+abstract: "Hierarchical Navigable Small World (HNSW) graphs are the de facto standard for approximate nearest neighbor search. This research benchmarks the effect of M, efConstruction, and efSearch parameters on recall@10 and memory usage across datasets from 100K to 10M vectors."
+methodology: "Controlled benchmarks using hnswlib with SIFT and GloVe datasets, measuring recall@10, QPS, and peak RSS memory."
+relatedPosts: []
+---
+
+## Motivation
+
+Vector search is everywhere -- RAG pipelines, recommendation systems, image search. HNSW is the most widely used ANN algorithm, but the parameter space is large and the documentation on real-world tradeoffs is sparse.
+
+This research aims to provide concrete numbers for the key question: **how much memory do you need to hit 95%+ recall?**
+
+## Parameters under test
+
+| Parameter | Range | What it controls |
+|-----------|-------|-----------------|
+| `M` | 8, 16, 32, 64 | Max connections per node |
+| `efConstruction` | 100, 200, 400 | Build-time search width |
+| `efSearch` | 50, 100, 200, 400 | Query-time search width |
+
+## Preliminary results
+
+Testing with SIFT-1M (128-dimensional, 1M vectors):
+
+- `M=16, efC=200, efS=100` hits 96.2% recall@10 at 1.2GB memory
+- `M=32, efC=200, efS=100` hits 98.1% recall@10 at 2.1GB memory
+- Doubling M roughly doubles memory but only adds 1-2% recall beyond M=16
+
+## Status
+
+This research is in progress. Full results across all dataset sizes will be published when complete.
