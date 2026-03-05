@@ -48,6 +48,45 @@ class Config:
         default_factory=lambda: os.environ.get("ANTHROPIC_API_KEY", "")
     )
 
+    # Social -- Twitter/X (OAuth 1.0a for free tier posting)
+    twitter_consumer_key: str = field(
+        default_factory=lambda: os.environ.get("TWITTER_CONSUMER_KEY", "")
+    )
+    twitter_consumer_secret: str = field(
+        default_factory=lambda: os.environ.get("TWITTER_CONSUMER_SECRET", "")
+    )
+    twitter_access_token: str = field(
+        default_factory=lambda: os.environ.get("TWITTER_ACCESS_TOKEN", "")
+    )
+    twitter_access_token_secret: str = field(
+        default_factory=lambda: os.environ.get("TWITTER_ACCESS_TOKEN_SECRET", "")
+    )
+
+    # Social -- LinkedIn
+    linkedin_access_token: str = field(
+        default_factory=lambda: os.environ.get("LINKEDIN_ACCESS_TOKEN", "")
+    )
+    linkedin_person_id: str = field(
+        default_factory=lambda: os.environ.get("LINKEDIN_PERSON_ID", "")
+    )
+
+    # Social -- Reddit
+    reddit_client_id: str = field(
+        default_factory=lambda: os.environ.get("REDDIT_CLIENT_ID", "")
+    )
+    reddit_client_secret: str = field(
+        default_factory=lambda: os.environ.get("REDDIT_CLIENT_SECRET", "")
+    )
+    reddit_username: str = field(
+        default_factory=lambda: os.environ.get("REDDIT_USERNAME", "")
+    )
+    reddit_password: str = field(
+        default_factory=lambda: os.environ.get("REDDIT_PASSWORD", "")
+    )
+    reddit_default_subreddit: str = field(
+        default_factory=lambda: os.environ.get("REDDIT_DEFAULT_SUBREDDIT", "")
+    )
+
     # Newsletter
     resend_api_key: str = field(
         default_factory=lambda: os.environ.get("RESEND_API_KEY", "")

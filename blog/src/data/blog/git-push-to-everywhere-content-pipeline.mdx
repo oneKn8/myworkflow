@@ -1,0 +1,165 @@
+---
+title: "I Built a Git-Push-to-Everywhere Content Pipeline"
+description: "A single git push cross-posts to Dev.to and Hashnode, generates social content for X, LinkedIn, and Reddit, and tracks everything in a content ledger."
+pubDate: 2026-03-05
+tags: ["automation", "python", "cli", "devtools", "open-source"]
+category: "project"
+featured: true
+series: "building-in-public"
+seriesOrder: 1
+---
+
+## I had 26 repos and 3 followers
+
+That's what building in silence gets you.
+
+For the past few years I've been heads-down writing code -- search engines, audio pipelines, CLI tools, infra automation. Over 26 repositories on GitHub. Nobody knows they exist. 3 followers. 8 stars.
+
+I finally accepted that building is only half the job. If nobody sees what you make, it doesn't matter how good it is.
+
+So I started a blog. But then I realized I had a new problem: getting a single blog post in front of people means manually cross-posting to Dev.to, rewriting it for LinkedIn, crafting a Reddit title that doesn't get downvoted, scheduling a tweet thread. That's hours of work per article. I'm not doing that.
+
+I'm an engineer. I automated it.
+
+## What I built
+
+One `git push` and my blog post goes to Dev.to, Hashnode, X, LinkedIn, and Reddit. A single Python CLI handles everything.
+
+Here's the flow:
+
+```
+git push (blog post merged to main)
+    |
+    v
+GitHub Actions detects changed markdown files
+    |
+    +---> Cross-posts to Dev.to + Hashnode
+    |       (sanitizes MDX, sets canonical URL)
+    |
+    +---> Sends post to Claude API
+    |       -> generates Twitter thread
+    |       -> generates LinkedIn post
+    |       -> generates Reddit post
+    |       -> Twitter: auto-queued
+    |       -> LinkedIn + Reddit: held for review
+    |
+    v
+VPS cron runs every 15 minutes
+    +---> Posts approved items
+    +---> Respects per-platform rate limits
+    +---> Updates content ledger with results
+```
+
+The whole thing runs on a unified CLI I called `myworkflow`, a single SQLite database, and a $4/month Hetzner VPS.
+
+## The 5 things that break every content pipeline
+
+I didn't build all of this on day one. I built the naive version first, watched it break in predictable ways, then fixed each failure mode. Here's what I learned.
+
+### 1. Duplicate posting
+
+If your CI runs twice on the same commit, or your cron overlaps with a manual post, you double-post. Looks terrible, platforms might flag you.
+
+Every queue entry gets a `content_hash` -- a SHA256 prefix of the content. There's a unique constraint on `(platform, slug, content_hash)` in the database. If you try to enqueue the same content twice, it silently skips. Cross-posts check for existing platform URLs before hitting APIs.
+
+Result: I can re-run CI 10 times and nothing double-posts.
+
+### 2. Rate limits and bans
+
+Reddit and LinkedIn will shadowban you if you post like a bot. Twitter's free tier gives you 1,500 tweets a month, which sounds like a lot until you realize threads eat through that fast.
+
+Each platform has a minimum gap between posts:
+
+| Platform | Min gap | Why |
+|----------|---------|-----|
+| Twitter  | 2 min   | Free tier budget |
+| LinkedIn | 10 min  | Shadowban-happy |
+| Reddit   | 15 min  | Needs human-like cadence |
+
+The drain command checks a rate limit table before posting. If it's too soon, it skips that platform and tries next cron cycle. API failures use exponential backoff with jitter. Max 3 attempts before it gives up.
+
+### 3. AI-generated content sounds like AI
+
+This is the one nobody talks about. You can't just pipe a blog post through Claude and blast the output to LinkedIn. It reads like ChatGPT wrote it. People can tell. LinkedIn especially will bury you for it.
+
+My fix: **review gates**. When the repurposer generates LinkedIn and Reddit content, it enqueues them as `needs_review` instead of auto-posting. Twitter auto-queues because the platform is more forgiving.
+
+```bash
+myworkflow social review          # see what's waiting
+myworkflow social approve 14      # approve after editing if needed
+```
+
+The 5 minutes I spend reviewing is worth more than the 30 minutes I saved generating it. I tweak maybe 20% of what Claude produces. The other 80% is genuinely good -- I just need to verify it doesn't have that "excited to share" energy that screams bot.
+
+### 4. Secret leakage
+
+I have API keys for Twitter, LinkedIn, Reddit, Dev.to, Hashnode, Anthropic, Resend, Cloudflare, and Umami. That's 15+ secrets. One bad `git add .` and they're all on GitHub.
+
+I added [gitleaks](https://github.com/gitleaks/gitleaks) as both a pre-commit hook and a CI check. Every push gets scanned. The HTTP client suppresses debug logging so tokens never appear in logs. All secrets are env vars, never config files.
+
+### 5. Analytics lying to you
+
+If all your social posts link to `https://yourblog.com/my-post`, your analytics can't tell which platform drove which traffic. It all shows up as "direct" or "social" with no breakdown.
+
+Every outbound link gets UTM tags injected automatically:
+
+```
+https://shifatsanto.dev/blog/my-post
+  ?utm_source=twitter
+  &utm_medium=social
+  &utm_campaign=my-post
+```
+
+Now my Umami dashboard shows exactly which platform drives which clicks. Turns out Twitter drives the most traffic but LinkedIn drives the most engagement. Wouldn't have known that without UTM tags.
+
+## The content ledger
+
+This is the part I'm most proud of. Every blog post gets tracked across every platform in a single table -- the content ledger.
+
+```bash
+myworkflow ledger show my-post        # status on every platform
+myworkflow ledger best-platform       # which platform wins
+myworkflow ledger sync-metrics        # pull latest stats
+```
+
+For each post, I can see: where it was posted, when, what the status is, how many views/reactions/clicks it got. `best-platform` aggregates across all posts and tells me where to focus.
+
+This is what turns a blog from "I write sometimes" into a growth engine. You can actually answer questions like "which topics get the most reactions on Dev.to?" and "is Reddit worth the effort?"
+
+## The stack
+
+| Component | Tech | Cost |
+|-----------|------|------|
+| Blog | Astro 5 + MDX, Cloudflare Pages | $0 |
+| CLI | Python, Typer + Rich | $0 |
+| AI | Claude API (Sonnet) | ~$5/mo |
+| Database | Single SQLite file | $0 |
+| Analytics | Go + Cobra + Umami | $0 (self-hosted) |
+| Newsletter | Resend + FastAPI | $0 (free tier) |
+| CI/CD | GitHub Actions | $0 |
+| Infra | Hetzner VPS CX22 | ~$4/mo |
+
+Total: **~$9/month** for a full content distribution system.
+
+## What I'd do differently
+
+**Start with content, not infrastructure.** I built the entire pipeline before I had a second blog post to push through it. Should've written 5 posts manually first to feel the pain points before automating them.
+
+**The review gate is the highest-leverage feature.** If I had to keep only one thing, it would be the review step for LinkedIn and Reddit. Without it, you're one bad AI output away from a shadowban.
+
+**SQLite is absurdly underrated for this.** One file, WAL mode, no server, no migrations headache. I'll hit the limits of this setup somewhere around 10,000 posts. I'll worry about that then.
+
+## The code
+
+Everything is in my [myworkflow repo](https://github.com/oneKn8/myworkflow). The CLI installs with:
+
+```bash
+cd tools/content-cli
+uv sync
+myworkflow init
+cp .env.example .env  # fill in your API keys
+```
+
+The patterns (idempotency keys, review gates, rate pacing, UTM injection, content ledger) are portable to any content pipeline. The implementation is specific to my stack but the ideas aren't.
+
+If you build something similar, I'd genuinely like to hear about it.

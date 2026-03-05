@@ -1,7 +1,12 @@
-"""HTTP client with retry logic."""
+"""HTTP client with retry logic. Never logs auth headers or payloads."""
 
 import httpx
+import logging
 from typing import Any
+
+# Suppress httpx debug logging that could leak tokens
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 
 def create_client(

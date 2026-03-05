@@ -6,6 +6,8 @@ from pydantic import BaseModel, EmailStr
 from itsdangerous import URLSafeTimedSerializer
 import re
 
+import secrets
+
 from myworkflow.config import load_config
 from myworkflow.db import get_db
 from myworkflow.newsletter.sender import send_confirmation
@@ -58,9 +60,10 @@ async def subscribe(req: SubscribeRequest):
                 (token, existing["id"]),
             )
         else:
+            unsub_token = secrets.token_urlsafe(32)
             db.execute(
-                "INSERT INTO subscribers (email, confirm_token) VALUES (?, ?)",
-                (email, token),
+                "INSERT INTO subscribers (email, confirm_token, unsubscribe_token) VALUES (?, ?, ?)",
+                (email, token, unsub_token),
             )
 
     confirm_url = f"{config.blog_url}/api/confirm?token={token}"
@@ -95,6 +98,25 @@ async def confirm(token: str):
         )
 
     return {"message": "Subscription confirmed"}
+
+
+@app.get("/unsubscribe")
+async def unsubscribe(token: str):
+    config = load_config()
+
+    with get_db(config.db_path) as db:
+        row = db.execute(
+            "SELECT id FROM subscribers WHERE unsubscribe_token = ?", (token,)
+        ).fetchone()
+        if not row:
+            raise HTTPException(status_code=400, detail="Invalid unsubscribe token")
+
+        db.execute(
+            "UPDATE subscribers SET unsubscribed_at = datetime('now') WHERE id = ?",
+            (row["id"],),
+        )
+
+    return {"message": "You have been unsubscribed"}
 
 
 @app.get("/health")

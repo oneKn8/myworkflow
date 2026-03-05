@@ -11,6 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - uses: astral-sh/setup-uv@v6
 
@@ -37,3 +39,18 @@ jobs:
             echo "Cross-posting: $post"
             uv run myworkflow cross-post publish "../../$post"
           done
+
+      - name: Generate social content and enqueue
+        if: steps.changed.outputs.posts != ''
+        working-directory: tools/content-cli
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BLOG_URL: https://shifatsanto.dev
+        run: |
+          for post in ${{ steps.changed.outputs.posts }}; do
+            echo "Repurposing: $post"
+            uv run myworkflow repurpose generate "../../$post" --all --enqueue
+          done
+          echo ""
+          echo "Twitter: auto-queued"
+          echo "LinkedIn + Reddit: needs review -- run 'myworkflow social review' to approve"

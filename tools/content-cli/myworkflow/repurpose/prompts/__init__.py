@@ -9,7 +9,7 @@ Rules:
 - Use line breaks between tweets, separated by ---
 - No hashtags (they reduce engagement)
 - Write in first person, conversational tone
-- Include the blog URL in the last tweet: {blog_url}
+- Include the blog URL exactly as-is in the last tweet: {blog_url}
 
 Title: {title}
 
@@ -25,8 +25,9 @@ Rules:
 - Start with a hook (first 2 lines visible before "see more")
 - Use short paragraphs and line breaks for readability
 - End with a question to encourage engagement
-- Professional but not corporate tone
-- Include the blog URL at the end: {blog_url}
+- Professional but not corporate tone -- sound like a real person sharing what they built
+- Avoid buzzwords, "excited to share", or anything that reads like a press release
+- Include the blog URL exactly as-is at the end: {blog_url}
 
 Title: {title}
 
@@ -38,12 +39,13 @@ Output only the LinkedIn post text."""
 REDDIT_PROMPT = """You are a developer writing a Reddit post. Convert this blog post into a Reddit-style text post.
 
 Rules:
-- Title should be informative, not clickbaity
+- Title should be informative, not clickbaity -- write what you'd click on in r/programming
 - Body should be a concise summary (300-500 words)
 - Include key findings/takeaways upfront
 - End with "Full post: {blog_url}"
 - Write for a technical audience
-- No marketing language
+- No marketing language, no self-promotion vibes
+- Sound like you're sharing something useful, not selling
 
 Title: {title}
 

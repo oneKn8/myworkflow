@@ -1,14 +1,14 @@
-"""LinkedIn posting via v2 API."""
+"""LinkedIn posting via Posts API (v202402+)."""
 
 from myworkflow.shared.http import create_client
 
 
-LINKEDIN_API = "https://api.linkedin.com/v2"
+LINKEDIN_API = "https://api.linkedin.com/rest"
 
 
-def post_article(
+def post_update(
     access_token: str,
-    author_urn: str,
+    person_id: str,
     text: str,
     article_url: str | None = None,
     article_title: str | None = None,
@@ -20,34 +20,34 @@ def post_article(
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
             "X-Restli-Protocol-Version": "2.0.0",
+            "LinkedIn-Version": "202402",
         },
     )
 
     payload: dict = {
-        "author": author_urn,
+        "author": f"urn:li:person:{person_id}",
+        "commentary": text,
+        "visibility": "PUBLIC",
+        "distribution": {
+            "feedDistribution": "MAIN_FEED",
+            "targetEntities": [],
+            "thirdPartyDistributionChannels": [],
+        },
         "lifecycleState": "PUBLISHED",
-        "specificContent": {
-            "com.linkedin.ugc.ShareContent": {
-                "shareCommentary": {"text": text},
-                "shareMediaCategory": "NONE",
-            }
-        },
-        "visibility": {
-            "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
-        },
     }
 
     if article_url:
-        media_content = payload["specificContent"]["com.linkedin.ugc.ShareContent"]
-        media_content["shareMediaCategory"] = "ARTICLE"
-        media_content["media"] = [
-            {
-                "status": "READY",
-                "originalUrl": article_url,
-                **({"title": {"text": article_title}} if article_title else {}),
+        payload["content"] = {
+            "article": {
+                "source": article_url,
+                **({"title": article_title} if article_title else {}),
             }
-        ]
+        }
 
-    resp = client.post("/ugcPosts", json=payload)
+    resp = client.post("/posts", json=payload)
     resp.raise_for_status()
-    return {"id": resp.headers.get("x-restli-id", "")}
+    post_id = resp.headers.get("x-restli-id", "")
+    return {
+        "id": post_id,
+        "url": f"https://www.linkedin.com/feed/update/{post_id}",
+    }
