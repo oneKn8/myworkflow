@@ -1,0 +1,141 @@
+---
+import BaseLayout from "./BaseLayout.astro";
+import TableOfContents from "../components/TableOfContents.astro";
+import AuthorBio from "../components/AuthorBio.astro";
+import CrossPostNotice from "../components/CrossPostNotice.astro";
+import JsonLd from "../components/JsonLd.astro";
+import NewsletterForm from "../components/NewsletterForm.astro";
+import TagList from "../components/TagList.astro";
+import { SITE, SITE_TITLE } from "../utils/seo";
+
+interface Props {
+  title: string;
+  description: string;
+  pubDate: Date;
+  updatedDate?: Date;
+  tags?: string[];
+  readingTime: string;
+  headings: { depth: number; slug: string; text: string }[];
+  canonicalUrl?: string;
+  originallyPublishedAt?: string;
+  originalUrl?: string;
+  abstract?: string;
+  schemaType?: "BlogPosting" | "ScholarlyArticle";
+}
+
+const {
+  title,
+  description,
+  pubDate,
+  updatedDate,
+  tags = [],
+  readingTime,
+  headings,
+  canonicalUrl,
+  originallyPublishedAt,
+  originalUrl,
+  abstract,
+  schemaType = "BlogPosting",
+} = Astro.props;
+
+const formattedDate = pubDate.toLocaleDateString("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
+const formattedUpdated = updatedDate?.toLocaleDateString("en-US", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
+const slug = Astro.url.pathname.split("/").filter(Boolean).pop() || "";
+
+const jsonLd: Record<string, unknown> = {
+  "@context": "https://schema.org",
+  "@type": schemaType,
+  headline: title,
+  description,
+  datePublished: pubDate.toISOString(),
+  ...(updatedDate && { dateModified: updatedDate.toISOString() }),
+  author: {
+    "@type": "Person",
+    name: "Shifat Islam Santo",
+    url: SITE,
+  },
+  publisher: {
+    "@type": "Person",
+    name: "Shifat Islam Santo",
+  },
+  image: `${SITE}/og/${slug}.png`,
+  url: canonicalUrl || Astro.url.href,
+  mainEntityOfPage: {
+    "@type": "WebPage",
+    "@id": Astro.url.href,
+  },
+};
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  ogImage={`/og/${slug}.png`}
+  canonicalUrl={canonicalUrl}
+  type="article"
+  publishedTime={pubDate.toISOString()}
+  modifiedTime={updatedDate?.toISOString()}
+  tags={tags}
+>
+  <JsonLd data={jsonLd} />
+
+  <article>
+    {originallyPublishedAt && originalUrl && (
+      <CrossPostNotice platform={originallyPublishedAt} url={originalUrl} />
+    )}
+
+    <header class="mb-8">
+      <h1 class="text-3xl font-bold tracking-tight sm:text-4xl">{title}</h1>
+      <div class="mt-3 flex items-center gap-3 text-sm text-(--color-text-muted)">
+        <time datetime={pubDate.toISOString()}>{formattedDate}</time>
+        <span aria-hidden="true">&middot;</span>
+        <span>{readingTime}</span>
+        {formattedUpdated && (
+          <>
+            <span aria-hidden="true">&middot;</span>
+            <span>Updated {formattedUpdated}</span>
+          </>
+        )}
+      </div>
+      {tags.length > 0 && (
+        <div class="mt-4">
+          <TagList tags={tags} />
+        </div>
+      )}
+    </header>
+
+    {abstract && (
+      <aside class="mb-8 rounded-lg border border-(--color-border) bg-(--color-surface) p-5">
+        <h2 class="mb-2 text-sm font-semibold uppercase tracking-wider text-(--color-text-muted)">Abstract</h2>
+        <p class="text-sm text-(--color-text-muted) leading-relaxed">{abstract}</p>
+      </aside>
+    )}
+
+    <TableOfContents headings={headings} />
+
+    <div class="prose prose-invert max-w-none">
+      <slot />
+    </div>
+
+    <AuthorBio
+      name="Shifat Islam Santo"
+      bio="Systems engineer building tools for search, audio, and infrastructure. Open source contributor."
+      avatar="/avatar.jpg"
+      github="https://github.com/oneKn8"
+      twitter="https://x.com/oneKn8"
+      linkedin="https://linkedin.com/in/shifat-islam-santo"
+    />
+
+    <NewsletterForm />
+  </article>
+</BaseLayout>
