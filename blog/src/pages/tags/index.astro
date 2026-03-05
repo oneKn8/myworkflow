@@ -1,0 +1,34 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import TagList from "../../components/TagList.astro";
+import { getCollection } from "astro:content";
+
+const blogPosts = await getCollection("blog", ({ data }) => !data.draft);
+const researchPosts = await getCollection("research", ({ data }) => !data.draft);
+const allPosts = [...blogPosts, ...researchPosts];
+
+const tagCounts = new Map<string, number>();
+for (const post of allPosts) {
+  for (const tag of post.data.tags) {
+    tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+  }
+}
+
+const sortedTags = [...tagCounts.entries()]
+  .sort((a, b) => b[1] - a[1])
+  .map(([tag]) => tag);
+---
+
+<BaseLayout
+  title="Tags"
+  description="Browse all topics and tags."
+>
+  <h1 class="text-3xl font-bold tracking-tight">Tags</h1>
+  <p class="mt-2 text-(--color-text-muted)">
+    Browse posts by topic.
+  </p>
+
+  <div class="mt-8">
+    <TagList tags={sortedTags} size="md" />
+  </div>
+</BaseLayout>

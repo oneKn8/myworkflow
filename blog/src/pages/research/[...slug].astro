@@ -1,0 +1,31 @@
+---
+import { getCollection, render } from "astro:content";
+import PostLayout from "../../layouts/PostLayout.astro";
+import { getReadingTime } from "../../utils/reading-time";
+
+export async function getStaticPaths() {
+  const posts = await getCollection("research", ({ data }) => !data.draft);
+  return posts.map((post) => ({
+    params: { slug: post.id },
+    props: { post },
+  }));
+}
+
+const { post } = Astro.props;
+const { Content, headings } = await render(post);
+const readingTime = post.body ? getReadingTime(post.body) : "1 min read";
+---
+
+<PostLayout
+  title={post.data.title}
+  description={post.data.description}
+  pubDate={post.data.pubDate}
+  updatedDate={post.data.updatedDate}
+  tags={post.data.tags}
+  readingTime={readingTime}
+  headings={headings}
+  abstract={post.data.abstract}
+  schemaType="ScholarlyArticle"
+>
+  <Content />
+</PostLayout>

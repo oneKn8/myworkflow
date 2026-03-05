@@ -1,0 +1,52 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PostCard from "../components/PostCard.astro";
+import NewsletterForm from "../components/NewsletterForm.astro";
+import { getCollection } from "astro:content";
+import { getReadingTime } from "../utils/reading-time";
+
+const posts = (await getCollection("blog", ({ data }) => !data.draft))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+  .slice(0, 5);
+---
+
+<BaseLayout
+  title="Shifat Santo"
+  description="Systems engineer writing about search, audio, infrastructure, and building in the open."
+>
+  <section class="py-12">
+    <h1 class="text-4xl font-bold tracking-tight sm:text-5xl">
+      Hey, I'm <span class="text-(--color-accent)">Shifat</span>
+    </h1>
+    <p class="mt-4 text-lg text-(--color-text-muted) leading-relaxed max-w-2xl">
+      Systems engineer building tools for search, audio, and infrastructure.
+      I write about what I build and what I learn along the way.
+    </p>
+  </section>
+
+  {posts.length > 0 && (
+    <section>
+      <div class="flex items-center justify-between">
+        <h2 class="text-xl font-semibold">Recent posts</h2>
+        <a href="/blog" class="text-sm text-(--color-accent) hover:text-(--color-accent-hover) transition-colors">
+          View all &rarr;
+        </a>
+      </div>
+      <div class="mt-4">
+        {posts.map((post) => (
+          <PostCard
+            title={post.data.title}
+            description={post.data.description}
+            pubDate={post.data.pubDate}
+            tags={post.data.tags}
+            readingTime={post.body ? getReadingTime(post.body) : undefined}
+            href={`/blog/${post.id}`}
+            category={post.data.category}
+          />
+        ))}
+      </div>
+    </section>
+  )}
+
+  <NewsletterForm />
+</BaseLayout>
