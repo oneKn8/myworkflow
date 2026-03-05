@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+.venv/
+__pycache__/
+
+# Build output
+blog/dist/
+blog/.astro/
+tools/analytics/bin/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Python
+*.egg-info/
+*.pyc
+
+# uv
+uv.lock
+
+# Misc
+*.log
