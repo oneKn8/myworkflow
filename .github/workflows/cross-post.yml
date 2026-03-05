@@ -1,0 +1,39 @@
+name: Cross-post on publish
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "blog/src/data/**"
+
+jobs:
+  cross-post:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Install content CLI
+        working-directory: tools/content-cli
+        run: uv sync
+
+      - name: Find new/changed posts
+        id: changed
+        run: |
+          POSTS=$(git diff --name-only HEAD~1 HEAD -- 'blog/src/data/blog/*.mdx' 'blog/src/data/blog/*.md' || echo "")
+          echo "posts=$POSTS" >> $GITHUB_OUTPUT
+
+      - name: Cross-post each new article
+        if: steps.changed.outputs.posts != ''
+        working-directory: tools/content-cli
+        env:
+          DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
+          HASHNODE_API_KEY: ${{ secrets.HASHNODE_API_KEY }}
+          HASHNODE_PUBLICATION_ID: ${{ secrets.HASHNODE_PUBLICATION_ID }}
+          BLOG_URL: https://shifatsanto.dev
+        run: |
+          for post in ${{ steps.changed.outputs.posts }}; do
+            echo "Cross-posting: $post"
+            uv run myworkflow cross-post publish "../../$post"
+          done
