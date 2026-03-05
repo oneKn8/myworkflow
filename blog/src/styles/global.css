@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/typography";
+
+@theme {
+  --color-bg: #0a0a0a;
+  --color-surface: #111111;
+  --color-surface-hover: #1a1a1a;
+  --color-border: #262626;
+  --color-text: #e5e5e5;
+  --color-text-muted: #a3a3a3;
+  --color-accent: #3b82f6;
+  --color-accent-hover: #60a5fa;
+
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+}
+
+html {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+::selection {
+  background-color: var(--color-accent);
+  color: white;
+}
+
+.prose {
+  --tw-prose-body: var(--color-text);
+  --tw-prose-headings: #fafafa;
+  --tw-prose-links: var(--color-accent);
+  --tw-prose-bold: #fafafa;
+  --tw-prose-code: #fafafa;
+  --tw-prose-pre-bg: var(--color-surface);
+  --tw-prose-pre-code: var(--color-text);
+  --tw-prose-quotes: var(--color-text-muted);
+  --tw-prose-quote-borders: var(--color-border);
+  --tw-prose-counters: var(--color-text-muted);
+  --tw-prose-bullets: var(--color-text-muted);
+  --tw-prose-hr: var(--color-border);
+  --tw-prose-th-borders: var(--color-border);
+  --tw-prose-td-borders: var(--color-border);
+}
+
+.prose a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s;
+}
+
+.prose a:hover {
+  color: var(--color-accent-hover);
+}
+
+.prose code:not(pre code) {
+  background-color: var(--color-surface);
+  padding: 0.15em 0.35em;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+
+.prose pre {
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+}
+
+.heading-link {
+  text-decoration: none;
+}
+
+.heading-link:hover {
+  text-decoration: underline;
+}

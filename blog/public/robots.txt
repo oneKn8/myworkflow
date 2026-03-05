@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://shifatsanto.dev/sitemap-index.xml
