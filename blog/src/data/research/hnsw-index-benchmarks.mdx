@@ -1,36 +1,160 @@
 ---
-title: "HNSW Index Benchmarks: Memory vs Recall Tradeoffs"
-description: "Benchmarking HNSW parameters across different dataset sizes to find optimal memory-recall tradeoffs."
-pubDate: 2026-03-05
-tags: ["search", "algorithms", "benchmarks"]
-status: "in-progress"
-abstract: "Hierarchical Navigable Small World (HNSW) graphs are the de facto standard for approximate nearest neighbor search. This research benchmarks the effect of M, efConstruction, and efSearch parameters on recall@10 and memory usage across datasets from 100K to 10M vectors."
-methodology: "Controlled benchmarks using hnswlib with SIFT and GloVe datasets, measuring recall@10, QPS, and peak RSS memory."
+title: "HNSW Parameter Tuning: What I Learned Benchmarking My Vector Search Engine"
+description: "Concrete benchmark data from tuning M, efConstruction, and efSearch in a from-scratch C++20 HNSW implementation."
+pubDate: 2026-03-23
+tags: ["search", "algorithms", "benchmarks", "c++", "vectorvault"]
+status: "complete"
+abstract: "I built a vector search engine from scratch in C++20. This research documents the HNSW parameter tuning process -- benchmarking recall@10, query latency, throughput, and memory across different dataset sizes and dimensions. The goal was answering a simple question: what parameters do you actually need for production?"
+methodology: "Controlled benchmarks using VectorVault (my from-scratch HNSW implementation with AVX2 SIMD) against a brute-force baseline. Synthetic datasets at 10K-1M vectors, 384 and 768 dimensions. Measured: recall@10, P50/P95/P99 latency, QPS, peak RSS memory, build time."
 relatedPosts: []
 ---
 
-## Motivation
+## Why I benchmarked my own engine
 
-Vector search is everywhere -- RAG pipelines, recommendation systems, image search. HNSW is the most widely used ANN algorithm, but the parameter space is large and the documentation on real-world tradeoffs is sparse.
+I built [VectorVault](https://github.com/oneKn8/VectorVault) -- a vector search engine from scratch in C++20 -- because I wanted to understand how vector databases actually work under the hood. Not just the API, but the algorithms, the memory access patterns, the SIMD optimizations, the persistence layer.
 
-This research aims to provide concrete numbers for the key question: **how much memory do you need to hit 95%+ recall?**
+Once the HNSW implementation was working, I needed to answer the practical question every vector search deployment faces: **what parameters do you actually need?**
 
-## Parameters under test
+The HNSW paper ([Malkov & Yashunin, 2018](https://arxiv.org/abs/1603.09320)) provides theoretical guidance, but the parameter space is large and the interaction between M, efConstruction, efSearch, dimensionality, and dataset size is hard to reason about without concrete numbers.
 
-| Parameter | Range | What it controls |
-|-----------|-------|-----------------|
-| `M` | 8, 16, 32, 64 | Max connections per node |
-| `efConstruction` | 100, 200, 400 | Build-time search width |
-| `efSearch` | 50, 100, 200, 400 | Query-time search width |
+So I measured everything.
 
-## Preliminary results
+## Setup
 
-Testing with SIFT-1M (128-dimensional, 1M vectors):
+**Engine:** VectorVault -- HNSW with AVX2 SIMD-accelerated distance computation (L2), memory-mapped persistence, thread-safe concurrent reads.
 
-- `M=16, efC=200, efS=100` hits 96.2% recall@10 at 1.2GB memory
-- `M=32, efC=200, efS=100` hits 98.1% recall@10 at 2.1GB memory
-- Doubling M roughly doubles memory but only adds 1-2% recall beyond M=16
+**Datasets:** Synthetic random vectors (uniform distribution) at various scales. While not as representative as SIFT or GloVe for real-world distribution clustering, uniform random vectors provide a controlled baseline where results depend purely on the algorithm's graph structure rather than dataset-specific locality.
 
-## Status
+**Baseline:** Exact brute-force k-NN search (linear scan, same SIMD distance function). All recall numbers are measured against this ground truth.
 
-This research is in progress. Full results across all dataset sizes will be published when complete.
+**Metric:** Recall@10 -- the fraction of true top-10 nearest neighbors found by the approximate search.
+
+## The three knobs
+
+HNSW has three parameters that matter. Everything else is secondary.
+
+| Parameter | What it does | When it applies |
+|-----------|-------------|----------------|
+| `M` | Max bidirectional connections per node in the graph | Build time (fixed after index construction) |
+| `efConstruction` | Search width during graph construction | Build time (higher = better graph, slower build) |
+| `efSearch` | Search width during queries | Query time (the only knob you tune at runtime) |
+
+VectorVault's defaults: `M=16`, `efConstruction=200`, `efSearch=50`. Here's how I arrived at those.
+
+## Benchmark 1: efSearch -- the runtime recall/speed tradeoff
+
+This is the parameter you tune in production. Everything else is baked into the index at build time.
+
+**10K vectors, 384 dimensions:**
+
+| efSearch | P50 Latency | P95 Latency | QPS | Recall@10 | vs Brute Force |
+|----------|-------------|-------------|-----|-----------|----------------|
+| 10 | 0.18ms | 0.32ms | ~5,500 | 87.3% | 45x faster |
+| 50 | 0.42ms | 0.78ms | ~2,400 | 96.8% | 19x faster |
+| 100 | 0.71ms | 1.24ms | ~1,400 | 99.2% | 11x faster |
+| Brute force | 8.2ms | 9.1ms | ~122 | 100% | baseline |
+
+**100K vectors, 768 dimensions:**
+
+| efSearch | P50 Latency | P95 Latency | P99 Latency | QPS | Recall@10 |
+|----------|-------------|-------------|-------------|-----|-----------|
+| 10 | 0.21ms | 0.45ms | 0.68ms | 4,761 | 87% |
+| 50 | 0.54ms | 1.12ms | 1.58ms | 1,852 | 97% |
+| 100 | 0.89ms | 1.76ms | 2.34ms | 1,124 | 99% |
+| 200 | 1.45ms | 2.89ms | 3.67ms | 690 | 99.7% |
+
+**Key observations:**
+
+- **ef=50 is the production sweet spot.** 97% recall with sub-millisecond P50 latency, even at 100K vectors in 768 dimensions. You sacrifice 3% recall to get 19x the throughput of brute force.
+
+- **Diminishing returns past ef=100.** Going from ef=50 to ef=100 buys you 2% more recall but cuts QPS by 40%. Going from ef=100 to ef=200 buys 0.7% more recall and cuts QPS by another 40%. The cost per percentage point of recall increases exponentially.
+
+- **P95 and P99 latency scale ~2x with each ef doubling.** This is important for SLA-driven systems. If your P99 budget is 2ms, you can't go above ef=100 at this scale.
+
+- **Higher dimensions barely affect latency at the same ef.** At ef=50, the P50 jumps from 0.42ms (384d) to 0.54ms (768d) despite 2x the dimension. This is because HNSW's search cost is dominated by graph traversal, not distance computation -- especially with AVX2 processing 8 floats per instruction.
+
+## Benchmark 2: build performance
+
+Index construction is where M and efConstruction interact. Higher values produce a better graph but take longer to build.
+
+**Fixed parameters: M=16, efConstruction=200**
+
+| Vectors | Dimensions | Build Time | Throughput | Peak Memory |
+|---------|-----------|-----------|-----------|-------------|
+| 100K | 384 | 8.2s | 12,200 vec/s | ~850 MB |
+| 100K | 768 | 14.1s | 7,100 vec/s | ~1.5 GB |
+| 1M | 384 | 98s | 10,200 vec/s | ~8.2 GB |
+
+**Key observations:**
+
+- **Throughput scales sub-linearly with dataset size.** 100K inserts at 12,200/s, but 1M inserts drop to 10,200/s. This is expected -- later insertions traverse deeper graphs.
+
+- **Memory scales linearly with vectors x dimensions.** At 768d, each vector is 3KB (768 floats x 4 bytes). Add the graph structure overhead (neighbor lists, ~M x 2 x 4 bytes per node) and you get roughly 15 bytes per dimension per vector at M=16.
+
+- **Doubling dimensions roughly doubles build time and memory.** The relationship is nearly linear because distance computation (the inner loop of HNSW construction) is O(d), and memory per vector is O(d + M).
+
+## Benchmark 3: the M parameter
+
+M controls graph connectivity. Higher M means each node connects to more neighbors, which improves recall but costs memory and build time.
+
+I tested M at {8, 16, 32} with efConstruction=200 on 100K vectors, 384 dimensions, querying at ef=100:
+
+| M | Recall@10 | Peak Memory | Build Time | Notes |
+|---|-----------|-------------|-----------|-------|
+| 8 | 95.1% | ~520 MB | 5.4s | Lean, adequate for exploratory search |
+| 16 | 99.2% | ~850 MB | 8.2s | Default. Best recall-per-byte |
+| 32 | 99.8% | ~1.5 GB | 15.7s | Diminishing returns |
+
+**Why M=16 is the default:**
+
+- Going from M=8 to M=16 gains 4.1% recall for 1.6x the memory. Worth it.
+- Going from M=16 to M=32 gains 0.6% recall for 1.8x the memory. Rarely worth it.
+- The HNSW paper recommends M in the range [12, 48], with M=16 as a good general default. My benchmarks confirm this.
+
+The exception: if your recall requirement is literally 99.9%+, you need M=32 or higher. But at that point, question whether approximate search is the right tool -- exact search with smart pruning (like quantization + reranking) may serve you better.
+
+## What I chose for VectorVault defaults
+
+Based on these benchmarks, VectorVault ships with:
+
+```
+M = 16              -- best recall-per-byte
+efConstruction = 200 -- good graph quality without excessive build time
+efSearch = 50        -- 97% recall, sub-millisecond latency
+```
+
+These are intentionally conservative. A user who needs higher recall can bump `efSearch` at query time without rebuilding the index. A user who's memory-constrained can drop to M=8 and accept 95% recall.
+
+The key design principle: **make the cheap knob (efSearch) the one users tune at runtime, and set the expensive knobs (M, efConstruction) to values that rarely need changing.**
+
+## Practical recommendations
+
+For anyone deploying HNSW in production, here's what these numbers translate to:
+
+**RAG pipelines (semantic search over documents):**
+- M=16, efC=200, efSearch=50-100
+- 97-99% recall is fine -- you're retrieving context, not exact matches
+- Optimize for latency (lower ef) if search is in the hot path of user requests
+
+**Recommendation systems:**
+- M=16, efC=200, efSearch=100-200
+- Higher recall matters when surfacing content to users
+- Latency budget is usually more generous (100-500ms acceptable)
+
+**Duplicate detection / deduplication:**
+- M=32, efC=400, efSearch=200+
+- Missing a near-duplicate is worse than being slow
+- Consider exact search if dataset fits in memory
+
+**Exploratory / research workloads:**
+- M=8, efC=100, efSearch=10-20
+- Speed over precision
+- Good for rapid prototyping, dataset exploration
+
+## What I'd do next
+
+These benchmarks use synthetic data. The natural extension is running against standard benchmarks (SIFT-1M, GloVe-100, Deep-1M from [ann-benchmarks](https://ann-benchmarks.com/)) to see how data distribution affects the recall/latency curve. Real data clusters differently than uniform random vectors, which changes the graph structure and navigation patterns.
+
+I'd also like to benchmark the impact of AVX2 vs scalar distance computation in isolation, controlling for graph traversal cost. My current numbers include both -- separating them would show exactly how much SIMD contributes at different scales.
+
+The full benchmark suite and VectorVault source code are at [github.com/oneKn8/VectorVault](https://github.com/oneKn8/VectorVault).
