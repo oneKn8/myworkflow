@@ -1,0 +1,140 @@
+---
+title: "I Scanned 20 MCP Server Configs for Security Vulnerabilities. 95% Failed."
+description: "I built a security scanner that maps findings to the OWASP MCP Top 10. Here's what it found."
+pubDate: 2026-03-23
+tags: ["security", "mcp", "rust", "ai-safety", "owasp"]
+category: "project"
+featured: true
+---
+
+## The problem
+
+Every developer using Claude Code, Cursor, or Windsurf with MCP servers is running unaudited code with filesystem, database, and cloud access. The MCP ecosystem has 19,000+ servers, 30 CVEs filed in 60 days, and [only 2.5% of servers pass basic security review](https://dev.to/manja316/we-scanned-5618-mcp-servers-for-security-vulnerabilities-heres-what-we-found-30k).
+
+The existing scanners ([Snyk Agent Scan](https://github.com/invariantlabs-ai/mcp-scan), [Cisco MCP Scanner](https://github.com/cisco-ai-defense/mcp-scanner)) require cloud API calls or LLM backends to work. I wanted something faster: pure static analysis, runs locally in milliseconds, maps every finding to the [OWASP MCP Top 10](https://owasp.org/www-project-mcp-top-10/).
+
+So I built [mcp-audit](https://github.com/oneKn8/mcp-audit).
+
+## What mcp-audit does
+
+It's a Rust CLI that scans MCP server configurations for security issues. Point it at your Claude Code `settings.json`, Cursor `mcp.json`, or any MCP server config and it checks all 10 OWASP MCP Top 10 categories:
+
+| Check | OWASP | What it catches |
+|-------|-------|----------------|
+| Secret exposure | MCP01 | API keys, tokens, credentials, DB connection strings |
+| Privilege escalation | MCP02 | Read+write+exec scope creep, admin/sudo refs, unrestricted filesystem |
+| Tool poisoning | MCP03 | Prompt injection in descriptions, hidden instructions, invisible unicode |
+| Supply chain | MCP04 | Unpinned npx packages, pipe-to-shell, rug pull indicators |
+| Command injection | MCP05 | Shell exec, path traversal, dangerous input fields |
+| Intent subversion | MCP06 | Tool shadowing, flow manipulation, silent data routing |
+| Missing auth | MCP07 | No auth config, 0.0.0.0 binds, no TLS on remote endpoints |
+| No audit trail | MCP08 | Missing logging, telemetry, or error reporting |
+| Shadow servers | MCP09 | Remote endpoints, temp/debug names, ephemeral ports |
+| Context leakage | MCP10 | Sensitive input fields, env path/network leakage |
+
+One command, milliseconds, no cloud APIs.
+
+## The scan
+
+I collected 20 MCP server configurations representing the most common real-world setups: Anthropic's official servers (filesystem, GitHub, Slack, Postgres, Puppeteer, etc.), database servers, remote proxies, Docker deployments, custom shell servers, and a few well-configured baselines.
+
+These aren't contrived attack scenarios. These are the configs developers copy from documentation and paste into their settings.
+
+```bash
+$ mcp-audit scan servers.json
+```
+
+## The results
+
+**19 out of 20 servers failed.** One passed clean.
+
+| Metric | Value |
+|--------|-------|
+| Servers scanned | 20 |
+| Passed clean | 1 (5%) |
+| Failed | 19 (95%) |
+| Total findings | 81 |
+| Avg findings/server | 4.0 |
+| Critical | 2 |
+| High | 42 |
+| Medium | 36 |
+
+### Findings by OWASP category
+
+| Category | Findings | % of total |
+|----------|----------|-----------|
+| MCP04 -- Supply Chain | 29 | 36% |
+| MCP08 -- No Audit Trail | 17 | 21% |
+| MCP07 -- Missing Auth | 15 | 19% |
+| MCP01 -- Secret Exposure | 12 | 15% |
+| MCP09 -- Shadow Servers | 4 | 5% |
+| MCP05 -- Command Injection | 2 | 2% |
+| MCP02 -- Privilege Escalation | 1 | 1% |
+| MCP10 -- Context Leakage | 1 | 1% |
+
+## What I found
+
+### 1. Supply chain is the #1 problem (36% of all findings)
+
+Almost every official MCP server tells you to install with `npx -y @modelcontextprotocol/server-*`. That `-y` flag auto-confirms installation without prompting. No version pin. No lockfile. No integrity check.
+
+Every time the server starts, npm fetches the latest version from the registry. If the package gets compromised (typosquatting, maintainer account takeover, dependency confusion), you silently run malicious code with full access to your filesystem and credentials.
+
+This already happened: the `mcp-remote` npm package (558K downloads) had a remote code execution vulnerability. The `postmark-mcp` server silently BCC'd emails to an attacker for weeks before anyone noticed.
+
+**Fix:** Pin versions explicitly (`npx @modelcontextprotocol/server-filesystem@1.2.3`). Better: install locally and run directly.
+
+### 2. Nobody configures logging (21% of findings)
+
+17 out of 20 servers had no logging or telemetry configured. If a tool makes a suspicious request, executes an unexpected command, or exfiltrates data -- you'd never know.
+
+The MCP spec doesn't require logging. Most server implementations don't include it by default. The result: zero forensic capability when something goes wrong.
+
+**Fix:** Add structured logging (JSON to stdout at minimum). For production: integrate OpenTelemetry.
+
+### 3. Missing authentication is normal (19% of findings)
+
+15 out of 20 servers had no authentication configuration. The MCP spec defines OAuth 2.1 with PKCE as the auth standard, but it's entirely optional. Most servers skip it because they assume "localhost only" means safe.
+
+But `localhost` doesn't mean safe when your AI agent can be tricked into making requests on your behalf. Tool poisoning (MCP03) + no auth (MCP07) = the agent can access anything the server exposes, without verification.
+
+**Fix:** Configure authentication even for local servers. The MCP spec's OAuth 2.1 implementation exists -- use it.
+
+### 4. Hard-coded secrets in configs (15% of findings)
+
+GitHub personal access tokens, Slack bot tokens, database passwords, API keys -- all sitting in plaintext in JSON config files. These configs get committed to repos, shared in documentation, and pasted into Stack Overflow answers.
+
+The GitHub MCP server's recommended config in the official docs puts your `GITHUB_PERSONAL_ACCESS_TOKEN` right in the JSON. Copy-paste culture turns documentation into a credential leak vector.
+
+**Fix:** Use secret references (`${SECRET_NAME}`) or external secret managers. Never put real tokens in config files.
+
+### 5. The only server that passed
+
+One server passed clean: a well-configured Node.js server with OAuth auth, OpenTelemetry tracing, Sentry error reporting, and production environment settings. It didn't use npx, didn't expose secrets, and had proper logging.
+
+This is what "secure by default" looks like. It's also clearly the exception, not the norm.
+
+## The two critical findings
+
+Two servers scored Critical:
+
+**1. A Postgres server** with database credentials baked into the command-line arguments: `postgresql://admin:password123@db.example.com:5432/production`. The password is visible to anyone running `ps aux`, any process logger, and any tool that reads `/proc`.
+
+**2. A custom shell server** running through `bash -c` with a MySQL connection string containing root credentials, an Anthropic API key in environment variables, binding to `0.0.0.0` (all network interfaces), and zero authentication. This is a textbook example of everything the OWASP MCP Top 10 warns against -- in a single config.
+
+## What this means
+
+The MCP ecosystem is in the same place web security was in 2010. The protocol works, the tooling is powerful, and the security story is an afterthought.
+
+The OWASP MCP Top 10 exists now. The attack patterns are documented. The CVEs are piling up. What's missing is basic hygiene: pin your dependencies, configure auth, add logging, stop putting secrets in config files.
+
+## Try it yourself
+
+```bash
+cargo install mcp-audit
+mcp-audit scan ~/.claude/settings.json
+```
+
+Scan your own configs. Fix what it finds. Contribute if you see patterns I missed.
+
+[github.com/oneKn8/mcp-audit](https://github.com/oneKn8/mcp-audit)
