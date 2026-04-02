@@ -1,0 +1,107 @@
+---
+title: "Most Multilingual Tokenizers Make Bengali 5-9x More Expensive"
+description: "I released a Bengali tokenizer benchmark showing how tokenizer choice can shrink usable context by 5-9x."
+pubDate: 2026-04-02
+tags: ["nlp", "llm", "bengali", "tokenization", "research", "unicode"]
+category: "project"
+featured: true
+---
+
+If you're training or adapting LLMs for Bengali, tokenizer choice is not a detail. It's a budget decision.
+
+I just released a repo and paper on Bengali tokenizer efficiency, and the result is hard to ignore:
+
+**most multilingual tokenizers make Bengali 5-9x more expensive in effective context usage.**
+
+Not a little worse. Not benchmark noise. A different operating regime.
+
+Repo: [oneKn8/bengali-tokenizer-eval](https://github.com/oneKn8/bengali-tokenizer-eval)
+
+## The headline result
+
+I evaluated 14 tokenizers on 3,000 held-out Bengali documents.
+
+The best Bengali-focused tokenizers landed around **1.47-1.75 tokens per word**.
+
+Most multilingual LLM tokenizers landed around **7.32-13.69 tokens per word**.
+
+That gap matters because a model does not see words. It sees tokens.
+
+If your tokenizer burns 8 or 12 tokens to represent what another tokenizer can represent in 1 or 2, your context window gets eaten alive. Your training becomes less efficient. Your inference gets more expensive. Your fixed context budget covers far less actual language.
+
+## What this means in practice
+
+With a 4,096-token window:
+
+- a strong Bengali tokenizer can fit roughly **2,800 Bengali words**
+- a weak multilingual tokenizer can fit closer to **300 words**
+
+Same window. Same architecture family. Completely different amount of usable text.
+
+That is the kind of gap that quietly distorts downstream model quality, especially when people assume continued pretraining alone will solve language coverage problems.
+
+## The part I didn't expect
+
+One of the most interesting findings was not just about vocabulary size or Bengali-specific training.
+
+It was Unicode.
+
+In my own newly trained tokenizer runs, a single missing combining character -- **U+09BC Bengali Nukta** -- explained **89.8% of byte-fallback tokens**.
+
+That one failure mode pushed byte-fallback from roughly **2% to 20%**.
+
+So part of the story is not just "train on Bengali." It's also "be extremely careful with normalization, combining marks, and what your tokenizer actually learns."
+
+This is the kind of bug that looks tiny in preprocessing and then shows up later as a systems-level tax on the whole model.
+
+## Why I released the repo
+
+I didn't want this to stay as a private spreadsheet and a paper PDF.
+
+I wanted a public artifact that other people can:
+
+- audit
+- cite
+- extend
+- compare against
+- use as a baseline for Bengali and other Indic-language tokenizer work
+
+So the repo includes:
+
+- the paper and source
+- the evaluation framework
+- **13 released SentencePiece tokenizers**
+- result artifacts
+- a portable comparison workflow for paper-style runs
+
+## Who should care
+
+This is useful if you are:
+
+- building Bengali LLMs from scratch
+- doing continued pretraining on multilingual models
+- evaluating tokenizer bottlenecks in low-resource or non-Latin scripts
+- working on Unicode-heavy language pipelines where normalization mistakes can silently hurt model efficiency
+
+I think one of the easiest mistakes in multilingual modeling is treating the tokenizer as inherited infrastructure instead of as a first-order modeling choice.
+
+For Bengali, that assumption is expensive.
+
+## The bigger point
+
+People often talk about model size, parameter counts, context windows, and scaling laws.
+
+But for languages like Bengali, the tokenizer can be the hidden gate in front of all of that.
+
+If your tokenizer is inefficient, your expensive context window is not really your context window. Your training tokens are not really buying as much language coverage as you think. And your multilingual base model may be carrying a tax you never measured.
+
+That is why I think this release matters.
+
+Not because it solves Bengali language modeling on its own, but because it gives us a concrete baseline, a reproducible framework, and a sharper way to reason about where the cost is actually going.
+
+## Links
+
+- Repo: [github.com/oneKn8/bengali-tokenizer-eval](https://github.com/oneKn8/bengali-tokenizer-eval)
+- Paper PDF: [github.com/oneKn8/bengali-tokenizer-eval/tree/main/paper](https://github.com/oneKn8/bengali-tokenizer-eval/tree/main/paper)
+
+If you're working on Bengali or other Indic-language tokenization, I'd love to see what you compare against it.
