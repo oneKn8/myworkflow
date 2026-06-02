@@ -59,7 +59,7 @@ export function ogTemplate(title: string, description: string, tags: string[] = 
                 type: "div",
                 props: {
                   style: { fontSize: "20px", color: "#3b82f6", fontWeight: 600 },
-                  children: "shifatsanto.dev",
+                  children: "blog.shifatsanto.com",
                 },
               },
               tags.length > 0

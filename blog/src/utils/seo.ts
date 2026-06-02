@@ -9,9 +9,9 @@ interface SeoProps {
   tags?: string[];
 }
 
-const SITE = "https://shifatsanto.dev";
+const SITE = "https://blog.shifatsanto.com";
 const SITE_TITLE = "Shifat Santo";
-const TWITTER_HANDLE = "@oneKn8";
+const TWITTER_HANDLE = "@shifat_santo";
 
 export function buildSeo(props: SeoProps) {
   const {

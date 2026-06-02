@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
 import PostCard from "../components/PostCard.astro";
-import NewsletterForm from "../components/NewsletterForm.astro";
+import JsonLd from "../components/JsonLd.astro";
 import { getCollection } from "astro:content";
 import { getReadingTime } from "../utils/reading-time";
 
@@ -15,12 +15,41 @@ const interests = [
   { label: "Infrastructure", icon: "M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01" },
   { label: "Developer Tools", icon: "M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" },
 ];
+
+const homeJsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Person",
+      name: "Shifat Santo",
+      alternateName: "Shifat Islam Santo",
+      jobTitle: "Systems AI Engineer",
+      url: "https://shifatsanto.com",
+      sameAs: [
+        "https://github.com/oneKn8",
+        "https://www.linkedin.com/in/shifatislam-santo/",
+        "https://x.com/shifat_santo",
+        "https://www.instagram.com/shifatis.santo/",
+        "https://blog.shifatsanto.com",
+      ],
+    },
+    {
+      "@type": "WebSite",
+      name: "Shifat Santo",
+      url: "https://blog.shifatsanto.com",
+      description:
+        "Systems engineer writing about search, audio, infrastructure, and building in the open.",
+    },
+  ],
+};
 ---
 
 <BaseLayout
   title="Shifat Santo"
   description="Systems engineer writing about search, audio, infrastructure, and building in the open."
 >
+  <JsonLd data={homeJsonLd} />
+
   <!-- Hero -->
   <section class="py-16 sm:py-20">
     <p class="text-sm font-medium tracking-wider uppercase text-(--color-accent)">Systems Engineer</p>
@@ -28,8 +57,8 @@ const interests = [
       Hey, I'm <span class="bg-gradient-to-r from-(--color-accent) to-purple-400 bg-clip-text text-transparent">Shifat</span>
     </h1>
     <p class="mt-5 text-lg leading-relaxed text-(--color-text-secondary) max-w-2xl">
-      I build tools for search, audio, and infrastructure -- then write about
-      what I learn along the way. 26 repos, mostly in Rust, Go, and Python.
+      I build tools for search, audio, and infrastructure, then write about
+      what I learn along the way. Mostly Rust, Go, and Python.
     </p>
     <div class="mt-8 flex flex-wrap gap-3">
       <a href="/blog" class="inline-flex items-center gap-2 rounded-lg bg-(--color-accent) px-4 py-2.5 text-sm font-medium text-white transition-all hover:brightness-110 hover:shadow-lg hover:shadow-(--color-accent)/20">
@@ -83,5 +112,4 @@ const interests = [
     </section>
   )}
 
-  <NewsletterForm />
 </BaseLayout>

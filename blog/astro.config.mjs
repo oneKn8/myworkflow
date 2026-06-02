@@ -6,7 +6,7 @@ import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 
 export default defineConfig({
-  site: "https://shifatsanto.dev",
+  site: "https://blog.shifatsanto.com",
   output: "static",
   integrations: [mdx(), sitemap()],
   vite: {

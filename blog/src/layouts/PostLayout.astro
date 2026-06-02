@@ -4,7 +4,6 @@ import TableOfContents from "../components/TableOfContents.astro";
 import AuthorBio from "../components/AuthorBio.astro";
 import CrossPostNotice from "../components/CrossPostNotice.astro";
 import JsonLd from "../components/JsonLd.astro";
-import NewsletterForm from "../components/NewsletterForm.astro";
 import TagList from "../components/TagList.astro";
 import { SITE, SITE_TITLE } from "../utils/seo";
 
@@ -62,11 +61,17 @@ const jsonLd: Record<string, unknown> = {
   author: {
     "@type": "Person",
     name: "Shifat Islam Santo",
-    url: SITE,
+    url: "https://shifatsanto.com",
+    sameAs: [
+      "https://github.com/oneKn8",
+      "https://www.linkedin.com/in/shifatislam-santo/",
+      "https://x.com/shifat_santo",
+    ],
   },
   publisher: {
     "@type": "Person",
     name: "Shifat Islam Santo",
+    url: "https://shifatsanto.com",
   },
   image: `${SITE}/og/${slug}.png`,
   url: canonicalUrl || Astro.url.href,
@@ -132,10 +137,9 @@ const jsonLd: Record<string, unknown> = {
       bio="Systems engineer building tools for search, audio, and infrastructure. Open source contributor."
       avatar="/avatar.jpg"
       github="https://github.com/oneKn8"
-      twitter="https://x.com/oneKn8"
-      linkedin="https://linkedin.com/in/shifat-islam-santo"
+      twitter="https://x.com/shifat_santo"
+      linkedin="https://www.linkedin.com/in/shifatislam-santo/"
     />
 
-    <NewsletterForm />
   </article>
 </BaseLayout>

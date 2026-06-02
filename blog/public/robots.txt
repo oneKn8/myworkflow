@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://shifatsanto.dev/sitemap-index.xml
+Sitemap: https://blog.shifatsanto.com/sitemap-index.xml
